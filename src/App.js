@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Buffer } from "buffer";
 import list from './contents/list.json'
 
-const octokit = new Octokit({ auth: "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" });
+const octokit = new Octokit({ auth: "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" });
 
 async function onLoad() {
   
