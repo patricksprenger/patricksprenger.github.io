@@ -1,36 +1,53 @@
 import { Octokit } from "octokit";
 import './App.css';
-import { useState } from 'react';
-import { Buffer } from "buffer";
-import list from './contents/list.json'
+import { useCallback, useEffect, useState } from 'react';
+import { RotatingLines } from "react-loader-spinner";
 
-const octokit = new Octokit({ auth: "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" });
+function App() {
+  const [state, setState] = useState(null)
+  const [sha, setSha] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-async function onLoad() {
   
-  await octokit.request(
-      'GET /repos/patricksprenger/patricksprenger.github.io/contents/list.json', {
-        owner: 'patricksprenger',
-        repo: 'patricksprenger.github.io',
-        path: 'blob/master/list.json'
+  const octokit = new Octokit({ 
+    auth: process.env.REACT_APP_TOKEN,
+  });
+  
+  const onLoad = useCallback(async () => {
+    await octokit.request("GET /octocat", {})
+    console.log(octokit, 'métodos')
+    await octokit.request('GET /repos/{owner}/{repo}/contents/list.json', {
+      owner: 'patricksprenger',
+      repo: 'patricksprenger.github.io',
+      path: 'blob/main/list.json',
+      headers: {
+        'If-None-Match': ''
+      }
     }).then(res => {
-        const encoded = res.data.content;
-        const decoded = Buffer.from(encoded, 'base64');
-        console.log('decoded', decoded)
-        // setCode(decoded);
-  }).catch(err => console.log('err', err)); 
-} 
+          const encoded = res.data.content;
+          const decoded = JSON.parse(atob(encoded));
+          setState(decoded)
+          setSha(res.data.sha)
+          console.log('decoded', decoded)
+          // setCode(decoded);
+    }).catch(err => console.log('err', err)); 
+}, []) 
 
-async function updateFile() {
+useEffect(() => {
+  onLoad()
+}, [onLoad])
+
+async function updateFile(updatedList) {
+  console.log(sha, 'shaaaaaaa')
   try {
-    const contentEncoded = Buffer.from("teste commit by js", 'base64');
+    const contentEncoded = btoa(JSON.stringify(updatedList));
     const data = await octokit.rest.repos.createOrUpdateFileContents({
     // replace the owner and email with your own details
     owner: "patricksprenger",
     repo: "patricksprenger.github.io",
     path: "list.json",
     message: "feat: Updated file programatically",
-    sha: '6f16acbbc80d444145a09d897a93591cd806d3f8',
+    sha: sha,
     content: contentEncoded,
       committer: {
         name: `Patrick Sprenger`,
@@ -47,16 +64,7 @@ async function updateFile() {
   }
 }
 
-//  console.log(token)
-  onLoad()
-  updateFile()
-
-//  const content = fs.readFileSync("./input.txt", "utf-8");
-const contentEncoded = Buffer.from("teste commit by js", 'base64');
-
-function App() {
-  console.log(list)
-  const [state, setState] = useState(list)
+//  console.log(token)  // updateFile()
 
   function handleCheck(position, checked) {
     const newArray = [...state]
@@ -64,6 +72,13 @@ function App() {
     setState(newArray)
   }
 
+  function handleUpdate() {
+    setIsLoading(true)
+    updateFile(state)
+    setTimeout(() => setIsLoading(false), 7000)
+  }
+
+  console.log(isLoading, 'loading')
 
   function Input({ gift, index }) {
     console.log(gift, index);
@@ -76,13 +91,28 @@ function App() {
   }
 
   return (
-    <div className="App-header">
-      <div className='main'>
-        {state.map((item, index) => 
-          <Input gift={item} index={index} />
-        )}
-      </div>
-    </div>
+    <>
+      {isLoading ? (
+        <RotatingLines
+          strokeColor="grey"
+          strokeWidth="5"
+          animationDuration="0.75"
+          width="96"
+          visible={true}
+       />
+      ) : (
+        <>
+          <button className="btn" onClick={handleUpdate}>SALVAR</button>
+          <div className="App-header">
+            <div className='main'>
+              {state?.map((item, index) => 
+                <Input gift={item} index={index} />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
